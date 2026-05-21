@@ -83,7 +83,15 @@ To run automatically every 24 hours:
 
 ## Dashboard
 
-Open `dashboard/dashboard.html` in your browser to view live data from Supabase.
+To run locally, serve the `dashboard/` folder with a local HTTP server:
+
+```bash
+cd dashboard
+python -m http.server 8081
+# → http://localhost:8081
+```
+
+On `localhost` the login screen still appears — use it to test the full auth flow, or sign in normally.
 
 **What the dashboard provides:**
 - ✅ Real-time display of all comments
@@ -101,6 +109,61 @@ Open `dashboard/dashboard.html` in your browser to view live data from Supabase.
 - **Low** — can wait
 - **Medium** — work on it now
 - **High** — urgent
+
+## Authentication setup
+
+The dashboard uses GitHub OAuth via Supabase Auth. Only invited users can log in — open signups are disabled.
+
+### 1. Create a GitHub OAuth App
+
+Go to github.com → Settings → Developer settings → OAuth Apps → New OAuth App:
+
+| Field | Value |
+|---|---|
+| Homepage URL | your GitHub Pages URL (or any URL) |
+| Authorization callback URL | `https://<your-supabase-id>.supabase.co/auth/v1/callback` |
+| Enable Device Flow | No |
+
+Copy the **Client ID** and **Client Secret**.
+
+### 2. Enable GitHub provider in Supabase
+
+Authentication → Providers → GitHub → Enable, paste Client ID and Client Secret.
+
+### 3. Disable open signups
+
+Authentication → Settings → **Enable sign ups → OFF**
+
+This ensures nobody can self-register — only users you explicitly invite can access the dashboard.
+
+### 4. Set up RLS policies
+
+Run in the Supabase SQL Editor:
+
+```sql
+ALTER TABLE pr_comments ENABLE ROW LEVEL SECURITY;
+
+-- Authenticated users can read and update
+CREATE POLICY "Authenticated users can read"
+  ON pr_comments FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can update"
+  ON pr_comments FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+
+-- Anon key allowed to insert (used by the sync script)
+CREATE POLICY "Script can insert"
+  ON pr_comments FOR INSERT TO anon WITH CHECK (true);
+```
+
+### 5. Invite team members
+
+Authentication → Users → **Invite user** → enter their email (must match their GitHub account email).
+
+They'll receive an email link, click it once to activate, then use "Sign in with GitHub" normally from that point on.
+
+### 6. Add redirect URLs (if hosting publicly)
+
+Authentication → URL Configuration → Redirect URLs → add your hosted URL (e.g. `https://yourteam.github.io/pr-tech-debt-tracker`).
 
 ## Adding or changing statuses
 
@@ -125,7 +188,7 @@ ALTER TABLE pr_comments
 
 If no constraint exists, skip this step.
 
-**2. `dashboard/dashboard.html` — filter dropdown**
+**2. `dashboard/index.html` — filter dropdown**
 
 ```html
 <select id="filterStatus">
@@ -134,13 +197,13 @@ If no constraint exists, skip this step.
 </select>
 ```
 
-**3. `dashboard/dashboard.html` — per-comment status select (inside `renderComments()`)**
+**3. `dashboard/index.html` — per-comment status select (inside `renderComments()`)**
 
 ```js
 <option value="in-progress" ${comment.status === 'in-progress' ? 'selected' : ''}>In progress</option>
 ```
 
-**4. `dashboard/dashboard.html` — stats card and `updateStats()`**
+**4. `dashboard/index.html` — stats card and `updateStats()`**
 
 Add a stat card in the HTML:
 ```html
@@ -156,7 +219,7 @@ const inProgress = allComments.filter(c => c.status === 'in-progress').length
 document.getElementById('inProgressComments').textContent = inProgress
 ```
 
-**5. `dashboard/dashboard.html` — badge color (optional)**
+**5. `dashboard/index.html` — badge color (optional)**
 
 ```css
 .status-in-progress {
@@ -177,5 +240,5 @@ document.getElementById('inProgressComments').textContent = inProgress
 - The script uses `upsert` on `comment_url` — if the URL is the same, the comment is updated
 
 **Dashboard did not load in the browser?**
-- Check that credentials in `dashboard/dashboard.html` are correct (they must match `.env`)
+- Check that credentials in `dashboard/index.html` are correct (they must match `.env`)
 - Check CORS — Supabase must allow requests from local hosting
