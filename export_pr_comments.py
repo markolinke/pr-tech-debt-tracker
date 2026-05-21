@@ -7,6 +7,7 @@ Korištenje:
     python export_pr_comments.py [owner/repo] [--days 30] [--to-csv]
 """
 
+import os
 import subprocess
 import json
 import csv
@@ -271,16 +272,23 @@ def main():
     )
     
     args = parser.parse_args()
-    
-    # Auto-detektuj repo ako nije proslijeđen
+
+    # Repo rezolucija: argument → REPO env var → auto-detekcija
     repo = args.repo
-    if not repo:
-        print("🔍 Auto-detektujem repositorij...")
-        repo = get_current_repo()
-        if not repo:
-            print("❌ Ne mogu auto-detektovati repo. Molim navedi: owner/repo")
-            sys.exit(1)
-        print(f"   Pronađeno: {repo}")
+    if repo:
+        print(f"   Repo (argument): {repo}")
+    else:
+        env_repo = os.getenv("REPO")
+        if env_repo:
+            repo = env_repo
+            print(f"   Repo (env REPO): {repo}")
+        else:
+            print("🔍 Auto-detektujem repositorij...")
+            repo = get_current_repo()
+            if not repo:
+                print("❌ Ne mogu auto-detektovati repo. Navedi ga kao argument ili postavi REPO env varijablu.")
+                sys.exit(1)
+            print(f"   Repo (auto-detekcija): {repo}")
     
     try:
         export_to_supabase(repo, args.days)
