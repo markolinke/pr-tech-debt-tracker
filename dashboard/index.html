@@ -989,6 +989,7 @@
         }
 
         function showLogin() {
+            window.history.replaceState(null, '', window.location.pathname)
             document.getElementById('loginScreen').style.display = 'flex'
             document.getElementById('mainContent').style.display = 'none'
             if (refreshInterval) clearInterval(refreshInterval)
