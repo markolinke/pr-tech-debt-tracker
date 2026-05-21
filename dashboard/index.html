@@ -161,6 +161,19 @@
             border-radius: 6px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             text-align: center;
+            cursor: pointer;
+            transition: box-shadow 0.15s, border-color 0.15s;
+            border: 2px solid transparent;
+        }
+
+        .stat-card:hover {
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+            border-color: #0366d6;
+        }
+
+        .stat-card.active {
+            border-color: #0366d6;
+            background: #f0f6ff;
         }
         
         .stat-number {
@@ -599,23 +612,23 @@
         <div id="errorMessage" class="error-message" style="display: none;"></div>
 
         <div class="stats">
-            <div class="stat-card">
+            <div class="stat-card" data-filter="">
                 <div class="stat-number" id="totalComments">0</div>
                 <div class="stat-label">Total comments</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" data-filter="open">
                 <div class="stat-number" id="openComments">0</div>
                 <div class="stat-label">Open</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" data-filter="resolved">
                 <div class="stat-number" id="resolvedComments">0</div>
                 <div class="stat-label">Resolved</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" data-filter="accepted">
                 <div class="stat-number" id="acceptedComments">0</div>
                 <div class="stat-label">Accepted</div>
             </div>
-            <div class="stat-card">
+            <div class="stat-card" data-filter="dismissed">
                 <div class="stat-number" id="dismissedComments">0</div>
                 <div class="stat-label">Dismissed</div>
             </div>
@@ -830,6 +843,11 @@
         }
 
         function renderComments() {
+            // Highlight active stat card
+            document.querySelectorAll('.stat-card').forEach(card => {
+                card.classList.toggle('active', card.dataset.filter === filterStatus.value)
+            })
+
             // Group by PR
             const byPr = {}
             const statusValue = filterStatus.value
@@ -934,6 +952,14 @@
         window.updateCommentPriority = function(id, priority) {
             updateComment(id, { priority })
         }
+
+        // Stat card click — set status filter
+        document.querySelectorAll('.stat-card').forEach(card => {
+            card.addEventListener('click', () => {
+                filterStatus.value = card.dataset.filter
+                renderComments()
+            })
+        })
 
         // Event listeners
         applyFilters.addEventListener('click', renderComments)
