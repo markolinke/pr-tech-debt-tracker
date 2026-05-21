@@ -464,6 +464,12 @@
                     </select>
                 </div>
                 <div class="filter-group">
+                    <label for="filterRepo">Repozitorij</label>
+                    <select id="filterRepo">
+                        <option value="">Svi repozitoriji</option>
+                    </select>
+                </div>
+                <div class="filter-group">
                     <label for="filterCommentAuthor">Autor komentara</label>
                     <select id="filterCommentAuthor">
                         <option value="">Svi autori</option>
@@ -523,6 +529,7 @@
         const commentsContainer = document.getElementById('commentsContainer')
         const filterStatus = document.getElementById('filterStatus')
         const filterPriority = document.getElementById('filterPriority')
+        const filterRepo = document.getElementById('filterRepo')
         const filterCommentAuthor = document.getElementById('filterCommentAuthor')
         const filterCommentText = document.getElementById('filterCommentText')
         const applyFilters = document.getElementById('applyFilters')
@@ -568,8 +575,16 @@
         }
 
         function populateFilterDropdowns() {
+            const repos = [...new Set(allComments.map(c => c.repo).filter(Boolean))].sort()
+            filterRepo.innerHTML = '<option value="">Svi repozitoriji</option>'
+            repos.forEach(repo => {
+                const option = document.createElement('option')
+                option.value = repo
+                option.textContent = repo
+                filterRepo.appendChild(option)
+            })
+
             const authors = [...new Set(allComments.map(c => c.comment_author))].sort()
-            
             filterCommentAuthor.innerHTML = '<option value="">Svi autori</option>'
             authors.forEach(author => {
                 const option = document.createElement('option')
@@ -663,6 +678,7 @@
             const byPr = {}
             const statusValue = filterStatus.value
             const priorityValue = filterPriority.value
+            const repoValue = filterRepo.value
             const authorValue = filterCommentAuthor.value
             const textValue = filterCommentText.value.toLowerCase()
 
@@ -670,6 +686,7 @@
                 // Primijeni filtere
                 if (statusValue && comment.status !== statusValue) continue
                 if (priorityValue && comment.priority !== priorityValue) continue
+                if (repoValue && comment.repo !== repoValue) continue
                 if (authorValue && comment.comment_author !== authorValue) continue
                 if (textValue && !comment.comment_text.toLowerCase().includes(textValue)) continue
 
@@ -680,6 +697,7 @@
                         author: comment.pr_author,
                         created: comment.pr_created_at,
                         url: comment.pr_url,
+                        repo: comment.repo,
                         comments: []
                     }
                 }
@@ -702,7 +720,7 @@
                                     <a href="${escapeHtml(pr.url)}" class="pr-link" target="_blank">PR #${prNum}</a>: ${escapeHtml(pr.title)}
                                 </div>
                                 <div class="pr-meta">
-                                    od <strong>${escapeHtml(pr.author)}</strong> • ${pr.created.substring(0, 10)} • ${pr.comments.length} komentar${pr.comments.length !== 1 ? 'a' : ''}
+                                    od <strong>${escapeHtml(pr.author)}</strong> • ${pr.created.substring(0, 10)} • ${pr.comments.length} komentar${pr.comments.length !== 1 ? 'a' : ''}${pr.repo ? ` • <code>${escapeHtml(pr.repo)}</code>` : ''}
                                 </div>
                             </div>
                         </div>
@@ -766,6 +784,7 @@
         clearFilters.addEventListener('click', () => {
             filterStatus.value = ''
             filterPriority.value = ''
+            filterRepo.value = ''
             filterCommentAuthor.value = ''
             filterCommentText.value = ''
             renderComments()

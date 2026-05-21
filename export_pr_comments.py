@@ -123,9 +123,10 @@ def get_review_comments(repo: str, pr_number: int, cutoff_date: str) -> list:
         return []
 
 
-def format_for_supabase(pr: dict, comment: dict) -> dict:
+def format_for_supabase(pr: dict, comment: dict, repo: str) -> dict:
     """Formatiraj komentar za Supabase"""
     return {
+        "repo": repo,
         "pr_number": pr["number"],
         "pr_title": pr["title"],
         "pr_author": pr["author"]["login"],
@@ -177,7 +178,7 @@ def export_to_supabase(repo: str, days: int) -> None:
         comments = get_review_comments(repo, pr_num, cutoff_date)
         
         for comment in comments:
-            db_record = format_for_supabase(pr, comment)
+            db_record = format_for_supabase(pr, comment, repo)
             all_comments_for_db.append(db_record)
         
         print(f"✓ ({len(comments)} komentara)")
