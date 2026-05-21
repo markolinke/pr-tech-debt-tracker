@@ -558,7 +558,7 @@
                     <label for="filterStatus">Status</label>
                     <select id="filterStatus">
                         <option value="">All statuses</option>
-                        <option value="open">Open</option>
+                        <option value="open" selected>Open</option>
                         <option value="accepted">Accepted</option>
                         <option value="resolved">Resolved</option>
                         <option value="dismissed">Dismissed</option>
@@ -939,7 +939,7 @@
         applyFilters.addEventListener('click', renderComments)
         
         clearFilters.addEventListener('click', () => {
-            filterStatus.value = ''
+            filterStatus.value = 'open'
             filterPriority.value = ''
             filterRepo.value = ''
             filterCommentAuthor.value = ''
