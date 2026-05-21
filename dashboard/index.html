@@ -760,8 +760,18 @@
             const lines = parseDiffHunk(diffHunk)
             if (lines.length === 0) return ''
 
+            // Trim to 5 lines before and after the commented line
+            const CONTEXT = 5
+            let visibleLines = lines
+            if (commentLine) {
+                const idx = lines.findIndex(l => l.newLine === commentLine)
+                if (idx !== -1) {
+                    visibleLines = lines.slice(Math.max(0, idx - CONTEXT), idx + CONTEXT + 1)
+                }
+            }
+
             let html = '<div class="diff-context">'
-            lines.forEach(line => {
+            visibleLines.forEach(line => {
                 const isCommented = commentLine && line.newLine === commentLine
                 const commentedClass = isCommented ? ' commented' : ''
                 const prefix = line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '
