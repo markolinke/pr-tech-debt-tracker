@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PR Review Debt - Supabase Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.0/dist/module.js" type="module"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f6f8fa;
+            color: #24292e;
+            line-height: 1.5;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: white;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        
+        .meta {
+            color: #586069;
+            font-size: 14px;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #586069;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #0366d6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .filters h3 {
+            font-size: 16px;
+            margin-bottom: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .filter-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .filter-group label {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: #586069;
+            text-transform: uppercase;
+        }
+        
+        .filter-group input,
+        .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #e1e4e8;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+        
+        .filter-group input:focus,
+        .filter-group select:focus {
+            outline: none;
+            border-color: #0366d6;
+            box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+        }
+        
+        .filter-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        
+        .filter-actions button {
+            padding: 8px 16px;
+            border: 1px solid #e1e4e8;
+            border-radius: 4px;
+            background: white;
+            color: #24292e;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .filter-actions button:hover {
+            background: #f6f8fa;
+            border-color: #d1d5da;
+        }
+        
+        .filter-actions button.primary {
+            background: #0366d6;
+            color: white;
+            border-color: #0366d6;
+        }
+        
+        .filter-actions button.primary:hover {
+            background: #0256c7;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 16px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .stat-number {
+            font-size: 28px;
+            font-weight: 600;
+            color: #0366d6;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #586069;
+            margin-top: 4px;
+        }
+        
+        .pr-block {
+            background: white;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .pr-block.hidden {
+            display: none;
+        }
+        
+        .pr-header {
+            background: #f6f8fa;
+            padding: 16px;
+            border-bottom: 1px solid #e1e4e8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .pr-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        
+        .pr-meta {
+            font-size: 12px;
+            color: #586069;
+        }
+        
+        .pr-link {
+            color: #0366d6;
+            text-decoration: none;
+        }
+        
+        .pr-link:hover {
+            text-decoration: underline;
+        }
+        
+        .comments-list {
+            padding: 16px;
+        }
+        
+        .comment {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #f6f8fa;
+            border-radius: 4px;
+            border-left: 3px solid #0366d6;
+        }
+        
+        .comment.hidden {
+            display: none;
+        }
+        
+        .comment:last-child {
+            margin-bottom: 0;
+        }
+        
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .comment-author {
+            font-weight: 600;
+            color: #24292e;
+            font-size: 14px;
+        }
+        
+        .comment-date {
+            color: #586069;
+            font-size: 12px;
+        }
+        
+        .comment-location {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 12px;
+            color: #6f42c1;
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            background: white;
+            border-radius: 3px;
+            display: inline-block;
+        }
+        
+        .comment-body {
+            color: #24292e;
+            font-size: 14px;
+            margin-bottom: 12px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .comment-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            font-size: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .status-select {
+            padding: 4px 8px;
+            border: 1px solid #e1e4e8;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            background: white;
+        }
+        
+        .status-select:hover {
+            border-color: #0366d6;
+        }
+        
+        .priority-select {
+            padding: 4px 8px;
+            border: 1px solid #e1e4e8;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            background: white;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        
+        .status-open {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-resolved {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-dismissed {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .priority-low {
+            color: #28a745;
+        }
+        
+        .priority-medium {
+            color: #ffc107;
+        }
+        
+        .priority-high {
+            color: #dc3545;
+        }
+        
+        .comment-link {
+            color: #0366d6;
+            text-decoration: none;
+            font-size: 12px;
+        }
+        
+        .comment-link:hover {
+            text-decoration: underline;
+        }
+        
+        .diff-context {
+            background: #f6f8fa;
+            border: 1px solid #e1e4e8;
+            border-radius: 4px;
+            margin: 12px 0;
+            overflow-x: auto;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+        
+        .diff-line {
+            padding: 2px 8px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            border-left: 3px solid transparent;
+        }
+        
+        .diff-line.context {
+            color: #586069;
+            background: #f6f8fa;
+        }
+        
+        .diff-line.added {
+            color: #28a745;
+            background: #f0f9f4;
+            border-left-color: #28a745;
+        }
+        
+        .diff-line.removed {
+            color: #d73a49;
+            background: #fdeef0;
+            border-left-color: #d73a49;
+        }
+        
+        .diff-line.added::before {
+            content: "+";
+            margin-right: 4px;
+            font-weight: 600;
+        }
+        
+        .diff-line.removed::before {
+            content: "-";
+            margin-right: 4px;
+            font-weight: 600;
+        }
+        
+        .diff-line.context::before {
+            content: " ";
+            margin-right: 4px;
+        }
+        
+        .empty {
+            color: #586069;
+            text-align: center;
+            padding: 40px 20px;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 4px;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📋 PR Review Debt Tracker</h1>
+            <div class="meta">
+                <strong>Repositorij:</strong> <span id="repoName">Učitavanja...</span><br>
+                <strong>Zadnja ažuriranja:</strong> <span id="lastUpdated">-</span><br>
+                <strong>Status:</strong> <span id="connectionStatus">Spajanja na Supabase...</span>
+            </div>
+        </header>
+
+        <div class="filters">
+            <h3>
+                🔍 Filtri
+                <span id="clearFilters" style="cursor: pointer; color: #0366d6; font-size: 12px; font-weight: normal;">Očisti sve</span>
+            </h3>
+            <div class="filter-grid">
+                <div class="filter-group">
+                    <label for="filterStatus">Status</label>
+                    <select id="filterStatus">
+                        <option value="">Svi statusu</option>
+                        <option value="open">Otvoreno</option>
+                        <option value="resolved">Riješeno</option>
+                        <option value="dismissed">Odbijeno</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterPriority">Prioritet</label>
+                    <select id="filterPriority">
+                        <option value="">Svi prioriteti</option>
+                        <option value="low">Nisko</option>
+                        <option value="medium">Srednje</option>
+                        <option value="high">Visoko</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterCommentAuthor">Autor komentara</label>
+                    <select id="filterCommentAuthor">
+                        <option value="">Svi autori</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label for="filterCommentText">Tekst komentara</label>
+                    <input type="text" id="filterCommentText" placeholder="npr. TODO, FIXME, cleanup">
+                </div>
+            </div>
+            <div class="filter-actions">
+                <button class="primary" id="applyFilters">Primijeni filtere</button>
+            </div>
+        </div>
+
+        <div id="successMessage" class="success-message" style="display: none;"></div>
+        <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-number" id="totalComments">0</div>
+                <div class="stat-label">Ukupno komentara</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="openComments">0</div>
+                <div class="stat-label">Otvorenih</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="resolvedComments">0</div>
+                <div class="stat-label">Riješenih</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="dismissedComments">0</div>
+                <div class="stat-label">Odbijenih</div>
+            </div>
+        </div>
+
+        <div id="commentsContainer">
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Učitavanja komentara...</p>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.0/+esm'
+
+        // Postavi Supabase konfiguraciju
+        const SUPABASE_URL = 'https://vvwbpfvclcqryoqxozmk.supabase.co'
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2d2JwZnZjbGNxcnlvcXhvem1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyODg0NzUsImV4cCI6MjA5NDg2NDQ3NX0.fLvtErtQRHxHqRGj8xgufMkok6jQa7bk4JuYJMJhGMs'
+
+        const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+        let allComments = []
+        
+        // DOM elementi
+        const commentsContainer = document.getElementById('commentsContainer')
+        const filterStatus = document.getElementById('filterStatus')
+        const filterPriority = document.getElementById('filterPriority')
+        const filterCommentAuthor = document.getElementById('filterCommentAuthor')
+        const filterCommentText = document.getElementById('filterCommentText')
+        const applyFilters = document.getElementById('applyFilters')
+        const clearFilters = document.getElementById('clearFilters')
+        const successMessage = document.getElementById('successMessage')
+        const errorMessage = document.getElementById('errorMessage')
+
+        // Učitaj sve komentare
+        async function loadComments() {
+            try {
+                const { data, error } = await supabase
+                    .from('pr_comments')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+
+                if (error) throw error
+
+                allComments = data || []
+                document.getElementById('connectionStatus').textContent = '✅ Povezano'
+                document.getElementById('connectionStatus').style.color = '#28a745'
+
+                updateStats()
+                populateFilterDropdowns()
+                renderComments()
+            } catch (err) {
+                console.error('Greška pri učitavanju:', err)
+                document.getElementById('connectionStatus').textContent = '❌ Greška: ' + err.message
+                document.getElementById('connectionStatus').style.color = '#d73a49'
+                commentsContainer.innerHTML = `<div class="empty">❌ Greška pri učitavanju komentara: ${err.message}</div>`
+            }
+        }
+
+        function updateStats() {
+            const total = allComments.length
+            const open = allComments.filter(c => c.status === 'open').length
+            const resolved = allComments.filter(c => c.status === 'resolved').length
+            const dismissed = allComments.filter(c => c.status === 'dismissed').length
+
+            document.getElementById('totalComments').textContent = total
+            document.getElementById('openComments').textContent = open
+            document.getElementById('resolvedComments').textContent = resolved
+            document.getElementById('dismissedComments').textContent = dismissed
+        }
+
+        function populateFilterDropdowns() {
+            const authors = [...new Set(allComments.map(c => c.comment_author))].sort()
+            
+            filterCommentAuthor.innerHTML = '<option value="">Svi autori</option>'
+            authors.forEach(author => {
+                const option = document.createElement('option')
+                option.value = author
+                option.textContent = author
+                filterCommentAuthor.appendChild(option)
+            })
+        }
+
+        function parseDiffHunk(diffHunk) {
+            if (!diffHunk) return []
+
+            const lines = diffHunk.split('\n')
+            const result = []
+
+            for (const line of lines) {
+                if (line.startsWith('@@')) continue
+                if (line.length === 0) continue
+
+                const prefix = line[0]
+                const content = line.substring(1)
+
+                let lineType = 'context'
+                if (prefix === '+') lineType = 'added'
+                else if (prefix === '-') lineType = 'removed'
+
+                result.push({ type: lineType, content })
+            }
+
+            return result
+        }
+
+        function renderDiffHunk(diffHunk) {
+            const lines = parseDiffHunk(diffHunk)
+            if (lines.length === 0) return ''
+
+            let html = '<div class="diff-context">'
+            lines.forEach(line => {
+                html += `<div class="diff-line ${line.type}">${escapeHtml(line.content)}</div>`
+            })
+            html += '</div>'
+
+            return html
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }
+            return text.replace(/[&<>"']/g, m => map[m])
+        }
+
+        async function updateComment(id, updates) {
+            try {
+                const { error } = await supabase
+                    .from('pr_comments')
+                    .update(updates)
+                    .eq('id', id)
+
+                if (error) throw error
+
+                // Ažuriraj lokalne podatke
+                const comment = allComments.find(c => c.id === id)
+                if (comment) {
+                    Object.assign(comment, updates)
+                }
+
+                showMessage('✅ Komentar je ažuriran', 'success')
+                updateStats()
+            } catch (err) {
+                console.error('Greška pri ažuriranju:', err)
+                showMessage('❌ Greška pri ažuriranju: ' + err.message, 'error')
+            }
+        }
+
+        function showMessage(msg, type) {
+            const element = type === 'success' ? successMessage : errorMessage
+            element.textContent = msg
+            element.style.display = 'block'
+            setTimeout(() => {
+                element.style.display = 'none'
+            }, 5000)
+        }
+
+        function renderComments() {
+            // Grupiraj po PR-u
+            const byPr = {}
+            const statusValue = filterStatus.value
+            const priorityValue = filterPriority.value
+            const authorValue = filterCommentAuthor.value
+            const textValue = filterCommentText.value.toLowerCase()
+
+            for (const comment of allComments) {
+                // Primijeni filtere
+                if (statusValue && comment.status !== statusValue) continue
+                if (priorityValue && comment.priority !== priorityValue) continue
+                if (authorValue && comment.comment_author !== authorValue) continue
+                if (textValue && !comment.comment_text.toLowerCase().includes(textValue)) continue
+
+                const prNum = comment.pr_number
+                if (!byPr[prNum]) {
+                    byPr[prNum] = {
+                        title: comment.pr_title,
+                        author: comment.pr_author,
+                        created: comment.pr_created_at,
+                        url: comment.pr_url,
+                        comments: []
+                    }
+                }
+                byPr[prNum].comments.push(comment)
+            }
+
+            if (Object.keys(byPr).length === 0) {
+                commentsContainer.innerHTML = '<div class="empty">Nema komentara koji odgovaraju filtrima</div>'
+                return
+            }
+
+            let html = ''
+            for (const prNum of Object.keys(byPr).sort((a, b) => b - a)) {
+                const pr = byPr[prNum]
+                html += `
+                    <div class="pr-block">
+                        <div class="pr-header">
+                            <div>
+                                <div class="pr-title">
+                                    <a href="${escapeHtml(pr.url)}" class="pr-link" target="_blank">PR #${prNum}</a>: ${escapeHtml(pr.title)}
+                                </div>
+                                <div class="pr-meta">
+                                    od <strong>${escapeHtml(pr.author)}</strong> • ${pr.created.substring(0, 10)} • ${pr.comments.length} komentar${pr.comments.length !== 1 ? 'a' : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="comments-list">
+                `
+
+                for (const comment of pr.comments) {
+                    const statusClass = `status-${comment.status}`
+                    const priorityClass = `priority-${comment.priority}`
+                    const diffHtml = renderDiffHunk(comment.comment_diff_hunk)
+
+                    html += `
+                        <div class="comment">
+                            <div class="comment-header">
+                                <span class="comment-author">${escapeHtml(comment.comment_author)}</span>
+                                <span class="comment-date">${comment.comment_date}</span>
+                            </div>
+                            <div class="comment-location">
+                                ${escapeHtml(comment.comment_path)}:${comment.comment_line}
+                            </div>
+                            ${diffHtml}
+                            <div class="comment-body">${escapeHtml(comment.comment_text)}</div>
+                            <div class="comment-actions">
+                                <select class="status-select" onchange="window.updateCommentStatus(${comment.id}, this.value)">
+                                    <option value="open" ${comment.status === 'open' ? 'selected' : ''}>Otvoreno</option>
+                                    <option value="resolved" ${comment.status === 'resolved' ? 'selected' : ''}>Riješeno</option>
+                                    <option value="dismissed" ${comment.status === 'dismissed' ? 'selected' : ''}>Odbijeno</option>
+                                </select>
+                                <select class="priority-select" onchange="window.updateCommentPriority(${comment.id}, this.value)">
+                                    <option value="low" ${comment.priority === 'low' ? 'selected' : ''}>Nisko</option>
+                                    <option value="medium" ${comment.priority === 'medium' ? 'selected' : ''}>Srednje</option>
+                                    <option value="high" ${comment.priority === 'high' ? 'selected' : ''}>Visoko</option>
+                                </select>
+                                <a href="${escapeHtml(comment.comment_url)}" class="comment-link" target="_blank">Vidi na GitHubu →</a>
+                            </div>
+                        </div>
+                    `
+                }
+
+                html += `
+                        </div>
+                    </div>
+                `
+            }
+
+            commentsContainer.innerHTML = html
+        }
+
+        // Globalne funkcije za inline editing
+        window.updateCommentStatus = function(id, status) {
+            updateComment(id, { status })
+        }
+
+        window.updateCommentPriority = function(id, priority) {
+            updateComment(id, { priority })
+        }
+
+        // Event listeneri
+        applyFilters.addEventListener('click', renderComments)
+        
+        clearFilters.addEventListener('click', () => {
+            filterStatus.value = ''
+            filterPriority.value = ''
+            filterCommentAuthor.value = ''
+            filterCommentText.value = ''
+            renderComments()
+        })
+
+        filterCommentText.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') renderComments()
+        })
+
+        // Inicijalni load
+        loadComments()
+
+        // Refresh svakih 30 sekundi
+        setInterval(loadComments, 30000)
+    </script>
+</body>
+</html>
