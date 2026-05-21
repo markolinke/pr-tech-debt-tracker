@@ -21,8 +21,8 @@ cp .env.example .env
 Open `.env` and add your Supabase credentials:
 
 ```
-SUPABASE_URL=https://vvwbpfvclcqryoqxozmk.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
 ```
 
 ### 3. Create the table in Supabase
