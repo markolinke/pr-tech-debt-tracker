@@ -1011,7 +1011,7 @@
         document.getElementById('loginBtn').addEventListener('click', () => {
             supabase.auth.signInWithOAuth({
                 provider: 'github',
-                options: { redirectTo: window.location.href }
+                options: { redirectTo: window.location.origin + window.location.pathname }
             })
         })
 
