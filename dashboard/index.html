@@ -368,44 +368,59 @@
         }
         
         .diff-line {
-            padding: 2px 8px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
+            display: flex;
+            align-items: baseline;
             border-left: 3px solid transparent;
+            white-space: pre;
         }
-        
+
         .diff-line.context {
             color: #586069;
             background: #f6f8fa;
         }
-        
+
         .diff-line.added {
             color: #28a745;
             background: #f0f9f4;
             border-left-color: #28a745;
         }
-        
+
         .diff-line.removed {
             color: #d73a49;
             background: #fdeef0;
             border-left-color: #d73a49;
         }
-        
-        .diff-line.added::before {
-            content: "+";
-            margin-right: 4px;
-            font-weight: 600;
+
+        .diff-line.commented {
+            background: #fffbdd;
+            border-left-color: #e6a817;
+            outline: 1px solid #e6c84a;
         }
-        
-        .diff-line.removed::before {
-            content: "-";
-            margin-right: 4px;
-            font-weight: 600;
+
+        .line-num {
+            min-width: 36px;
+            padding: 2px 8px 2px 6px;
+            text-align: right;
+            color: #8b949e;
+            background: rgba(0,0,0,0.04);
+            border-right: 1px solid #e1e4e8;
+            user-select: none;
+            flex-shrink: 0;
+            font-size: 11px;
         }
-        
-        .diff-line.context::before {
-            content: " ";
-            margin-right: 4px;
+
+        .line-prefix {
+            padding: 2px 6px;
+            font-weight: 600;
+            flex-shrink: 0;
+            user-select: none;
+        }
+
+        .line-content {
+            padding: 2px 4px;
+            flex: 1;
+            overflow-x: auto;
+            word-break: break-all;
         }
         
         .empty {
@@ -700,31 +715,61 @@
 
             const lines = diffHunk.split('\n')
             const result = []
+            let oldLine = 0
+            let newLine = 0
 
             for (const line of lines) {
-                if (line.startsWith('@@')) continue
+                if (line.startsWith('@@')) {
+                    // Parse: @@ -oldStart,oldCount +newStart,newCount @@
+                    const match = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/)
+                    if (match) {
+                        oldLine = parseInt(match[1]) - 1
+                        newLine = parseInt(match[2]) - 1
+                    }
+                    continue
+                }
                 if (line.length === 0) continue
 
                 const prefix = line[0]
                 const content = line.substring(1)
 
                 let lineType = 'context'
-                if (prefix === '+') lineType = 'added'
-                else if (prefix === '-') lineType = 'removed'
+                let displayNum = null
 
-                result.push({ type: lineType, content })
+                if (prefix === '+') {
+                    lineType = 'added'
+                    newLine++
+                    displayNum = newLine
+                } else if (prefix === '-') {
+                    lineType = 'removed'
+                    oldLine++
+                    displayNum = oldLine
+                } else {
+                    oldLine++
+                    newLine++
+                    displayNum = newLine
+                }
+
+                result.push({ type: lineType, content, displayNum, newLine: lineType !== 'removed' ? newLine : null })
             }
 
             return result
         }
 
-        function renderDiffHunk(diffHunk) {
+        function renderDiffHunk(diffHunk, commentLine) {
             const lines = parseDiffHunk(diffHunk)
             if (lines.length === 0) return ''
 
             let html = '<div class="diff-context">'
             lines.forEach(line => {
-                html += `<div class="diff-line ${line.type}">${escapeHtml(line.content)}</div>`
+                const isCommented = commentLine && line.newLine === commentLine
+                const commentedClass = isCommented ? ' commented' : ''
+                const prefix = line.type === 'added' ? '+' : line.type === 'removed' ? '-' : ' '
+                html += `<div class="diff-line ${line.type}${commentedClass}">` +
+                        `<span class="line-num">${line.displayNum ?? ''}</span>` +
+                        `<span class="line-prefix">${prefix}</span>` +
+                        `<span class="line-content">${escapeHtml(line.content)}</span>` +
+                        `</div>`
             })
             html += '</div>'
 
@@ -831,7 +876,7 @@
                 for (const comment of pr.comments) {
                     const statusClass = `status-${comment.status}`
                     const priorityClass = `priority-${comment.priority}`
-                    const diffHtml = renderDiffHunk(comment.comment_diff_hunk)
+                    const diffHtml = renderDiffHunk(comment.comment_diff_hunk, comment.comment_line)
 
                     html += `
                         <div class="comment">
