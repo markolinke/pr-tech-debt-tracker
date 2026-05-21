@@ -146,19 +146,24 @@ def format_for_supabase(pr: dict, comment: dict, repo: str) -> dict:
     }
 
 
-def export_to_supabase(repo: str, days: int) -> None:
+def export_to_supabase(repo: str, days: int, dry_run: bool = False) -> None:
     """Main function — fetch comments and save to Supabase."""
 
     print(f"🚀 Exporting PR review comments from the last {days} days")
     print(f"   Repository: {repo}")
+    if dry_run:
+        print("   Mode: DRY RUN — nothing will be saved")
     print()
 
-    try:
-        client = get_supabase_client()
-        print("✅ Connected to Supabase")
-    except ValueError as e:
-        print(f"❌ {e}")
-        sys.exit(1)
+    if not dry_run:
+        try:
+            client = get_supabase_client()
+            print("✅ Connected to Supabase")
+        except ValueError as e:
+            print(f"❌ {e}")
+            sys.exit(1)
+    else:
+        client = None
 
     cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")
 
@@ -180,28 +185,33 @@ def export_to_supabase(repo: str, days: int) -> None:
 
         print(f"✓ ({len(comments)} comments)")
 
-    if all_comments_for_db:
-        print()
+    print()
+    if not all_comments_for_db:
+        print("⚠️  No comments found in this period")
+        return
+
+    if dry_run:
+        print(f"🔍 Dry run — would insert {len(all_comments_for_db)} comments into Supabase")
+    else:
         print(f"💾 Inserting {len(all_comments_for_db)} comments into Supabase...")
 
         inserted, skipped = bulk_insert_comments(client, all_comments_for_db)
 
-        print()
         print(f"✅ Supabase updated!")
         print(f"   ➕ Inserted: {inserted} new comments")
         print(f"   ⏭️  Skipped: {skipped} duplicates")
-    else:
-        print()
-        print("⚠️  No comments found in this period")
 
 
-def export_to_csv(repo: str, days: int, output_file: str = None) -> None:
+def export_to_csv(repo: str, days: int, output_file: str = None, dry_run: bool = False) -> None:
     """Optional: also save comments to a CSV file for backup."""
 
     if output_file is None:
         output_file = "pr_review_debt.csv"
 
-    print(f"💾 Exporting to CSV: {output_file}")
+    if dry_run:
+        print(f"🔍 Dry run — would export to CSV: {output_file}")
+    else:
+        print(f"💾 Exporting to CSV: {output_file}")
 
     cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")
     prs = get_prs_from_last_n_days(repo, days)
@@ -229,13 +239,16 @@ def export_to_csv(repo: str, days: int, output_file: str = None) -> None:
             all_rows.append(row)
 
     if all_rows:
-        fieldnames = list(all_rows[0].keys())
-        with open(output_file, "w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            writer.writerows(all_rows)
+        if dry_run:
+            print(f"🔍 Dry run — would write {len(all_rows)} rows to {output_file}")
+        else:
+            fieldnames = list(all_rows[0].keys())
+            with open(output_file, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(all_rows)
 
-        print(f"✅ CSV exported: {output_file}")
+            print(f"✅ CSV exported: {output_file}")
     else:
         print("⚠️  No comments found")
 
@@ -265,6 +278,11 @@ def main():
         "--output", "-o",
         help="CSV output file (default: pr_review_debt.csv)"
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Fetch and process comments but do not write anything to Supabase or CSV"
+    )
 
     args = parser.parse_args()
 
@@ -286,10 +304,10 @@ def main():
             print(f"   Repo (auto-detected): {repo}")
 
     try:
-        export_to_supabase(repo, args.days)
+        export_to_supabase(repo, args.days, dry_run=args.dry_run)
 
         if args.to_csv:
-            export_to_csv(repo, args.days, args.output)
+            export_to_csv(repo, args.days, args.output, dry_run=args.dry_run)
 
     except KeyboardInterrupt:
         print("\n⚠️  Interrupted by user")
