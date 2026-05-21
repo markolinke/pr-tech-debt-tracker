@@ -518,14 +518,14 @@
     <script type="module">
         import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.38.0/+esm'
 
-        // Postavi Supabase konfiguraciju
+        // Supabase configuration
         const SUPABASE_URL = 'https://vvwbpfvclcqryoqxozmk.supabase.co'
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZ2d2JwZnZjbGNxcnlvcXhvem1rIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkyODg0NzUsImV4cCI6MjA5NDg2NDQ3NX0.fLvtErtQRHxHqRGj8xgufMkok6jQa7bk4JuYJMJhGMs'
 
         const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
         let allComments = []
         
-        // DOM elementi
+        // DOM elements
         const commentsContainer = document.getElementById('commentsContainer')
         const filterStatus = document.getElementById('filterStatus')
         const filterPriority = document.getElementById('filterPriority')
@@ -537,7 +537,7 @@
         const successMessage = document.getElementById('successMessage')
         const errorMessage = document.getElementById('errorMessage')
 
-        // Učitaj sve komentare
+        // Load all comments
         async function loadComments() {
             try {
                 const { data, error } = await supabase
@@ -650,7 +650,7 @@
 
                 if (error) throw error
 
-                // Ažuriraj lokalne podatke
+                // Update local data
                 const comment = allComments.find(c => c.id === id)
                 if (comment) {
                     Object.assign(comment, updates)
@@ -674,7 +674,7 @@
         }
 
         function renderComments() {
-            // Grupiraj po PR-u
+            // Group by PR
             const byPr = {}
             const statusValue = filterStatus.value
             const priorityValue = filterPriority.value
@@ -683,7 +683,7 @@
             const textValue = filterCommentText.value.toLowerCase()
 
             for (const comment of allComments) {
-                // Primijeni filtere
+                // Apply filters
                 if (statusValue && comment.status !== statusValue) continue
                 if (priorityValue && comment.priority !== priorityValue) continue
                 if (repoValue && comment.repo !== repoValue) continue
@@ -769,7 +769,7 @@
             commentsContainer.innerHTML = html
         }
 
-        // Globalne funkcije za inline editing
+        // Global functions for inline editing
         window.updateCommentStatus = function(id, status) {
             updateComment(id, { status })
         }
@@ -778,7 +778,7 @@
             updateComment(id, { priority })
         }
 
-        // Event listeneri
+        // Event listeners
         applyFilters.addEventListener('click', renderComments)
         
         clearFilters.addEventListener('click', () => {
@@ -794,10 +794,10 @@
             if (e.key === 'Enter') renderComments()
         })
 
-        // Inicijalni load
+        // Initial load
         loadComments()
 
-        // Refresh svakih 30 sekundi
+        // Refresh every 30 seconds
         setInterval(loadComments, 30000)
     </script>
 </body>

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-GitHub PR Review Debt Tracker - Supabase verzija
-Izvlači PR review komentare i sprema ih u Supabase
+GitHub PR Review Debt Tracker - Supabase edition
+Fetches PR review comments and saves them to Supabase
 
-Korištenje:
+Usage:
     python export_pr_comments.py [owner/repo] [--days 30] [--to-csv]
 """
 
@@ -19,7 +19,7 @@ from supabase_utils import get_supabase_client, bulk_insert_comments
 
 
 def get_current_repo() -> str:
-    """Auto-detektuj repo iz trenutnog git direktorijuma"""
+    """Detect repo from the current git directory."""
     try:
         result = subprocess.run(
             ["git", "remote", "get-url", "origin"],
@@ -36,7 +36,7 @@ def get_current_repo() -> str:
             return repo
     except (subprocess.CalledProcessError, IndexError):
         pass
-    
+
     try:
         result = subprocess.run(
             ["gh", "repo", "view", "--json", "nameWithOwner"],
@@ -51,7 +51,7 @@ def get_current_repo() -> str:
 
 
 def run_gh_command(cmd: list) -> dict | list:
-    """Pokreni GitHub CLI komandu i vrati JSON"""
+    """Run a GitHub CLI command and return parsed JSON."""
     try:
         result = subprocess.run(
             ["gh"] + cmd,
@@ -61,19 +61,19 @@ def run_gh_command(cmd: list) -> dict | list:
         )
         return json.loads(result.stdout)
     except subprocess.CalledProcessError as e:
-        print(f"❌ Greška pri pokretu gh komande: {e.stderr}")
+        print(f"❌ gh command failed: {e.stderr}")
         raise
     except json.JSONDecodeError:
-        print(f"❌ Greška pri parsiranju JSON-a")
+        print(f"❌ Failed to parse JSON response")
         raise
 
 
 def get_prs_from_last_n_days(repo: str, days: int) -> list:
-    """Uzmi sve PR-ove koji su se mijenjali u posljednjih N dana"""
+    """Fetch all PRs updated within the last N days."""
     cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")
-    
-    print(f"📋 Preuzimam PR-ove koji su se mijenjali od {cutoff_date}...")
-    
+
+    print(f"📋 Fetching PRs updated since {cutoff_date}...")
+
     cmd = [
         "pr", "list",
         "--repo", repo,
@@ -82,14 +82,14 @@ def get_prs_from_last_n_days(repo: str, days: int) -> list:
         "--search", f"updated:>{cutoff_date}",
         "--json", "number,title,author,createdAt,updatedAt,url"
     ]
-    
+
     prs = run_gh_command(cmd)
-    print(f"   Pronađeno {len(prs)} PR-ova")
+    print(f"   Found {len(prs)} PRs")
     return prs
 
 
 def get_review_comments(repo: str, pr_number: int, cutoff_date: str) -> list:
-    """Uzmi review komentare za specifičan PR"""
+    """Fetch review comments for a specific PR."""
     try:
         cmd = [
             "api",
@@ -97,14 +97,14 @@ def get_review_comments(repo: str, pr_number: int, cutoff_date: str) -> list:
             "--paginate",
             "-H", "Accept: application/vnd.github.v3+json"
         ]
-        
+
         data = run_gh_command(cmd)
-        
+
         if isinstance(data, dict) and "message" in data:
             return []
-        
+
         comments_list = data if isinstance(data, list) else [data]
-        
+
         all_comments = []
         for comment in comments_list:
             created_at = comment.get("created_at", "")
@@ -118,14 +118,14 @@ def get_review_comments(repo: str, pr_number: int, cutoff_date: str) -> list:
                     "url": comment.get("html_url", ""),
                     "diff_hunk": comment.get("diff_hunk", "")
                 })
-        
+
         return all_comments
     except (subprocess.CalledProcessError, KeyError, TypeError):
         return []
 
 
 def format_for_supabase(pr: dict, comment: dict, repo: str) -> dict:
-    """Formatiraj komentar za Supabase"""
+    """Format a comment record for Supabase insertion."""
     return {
         "repo": repo,
         "pr_number": pr["number"],
@@ -147,76 +147,71 @@ def format_for_supabase(pr: dict, comment: dict, repo: str) -> dict:
 
 
 def export_to_supabase(repo: str, days: int) -> None:
-    """Glavna funkcija - izvlači komentare i sprema u Supabase"""
-    
-    print(f"🚀 Izvozim PR review komentare iz posljednjih {days} dana")
-    print(f"   Repositorij: {repo}")
+    """Main function — fetch comments and save to Supabase."""
+
+    print(f"🚀 Exporting PR review comments from the last {days} days")
+    print(f"   Repository: {repo}")
     print()
-    
-    # Inicijaliziraj Supabase klijent
+
     try:
         client = get_supabase_client()
-        print("✅ Povezan na Supabase")
+        print("✅ Connected to Supabase")
     except ValueError as e:
         print(f"❌ {e}")
         sys.exit(1)
-    
+
     cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")
-    
-    # Uzmi sve PR-ove
+
     prs = get_prs_from_last_n_days(repo, days)
-    
-    # Prikupljaj sve komentare
+
     all_comments_for_db = []
-    
+
     for pr in prs:
         pr_num = pr["number"]
         pr_title = pr["title"]
-        
+
         print(f"  PR #{pr_num}: {pr_title[:50]}... ", end="", flush=True)
-        
-        # Uzmi review komentare
+
         comments = get_review_comments(repo, pr_num, cutoff_date)
-        
+
         for comment in comments:
             db_record = format_for_supabase(pr, comment, repo)
             all_comments_for_db.append(db_record)
-        
-        print(f"✓ ({len(comments)} komentara)")
-    
-    # Umeć sve komentare u Supabase
+
+        print(f"✓ ({len(comments)} comments)")
+
     if all_comments_for_db:
         print()
-        print(f"💾 Umećem {len(all_comments_for_db)} komentara u Supabase...")
-        
+        print(f"💾 Inserting {len(all_comments_for_db)} comments into Supabase...")
+
         inserted, skipped = bulk_insert_comments(client, all_comments_for_db)
-        
+
         print()
-        print(f"✅ Supabase ažuriran!")
-        print(f"   ➕ Umetano: {inserted} novih komentara")
-        print(f"   ⏭️  Preskaču: {skipped} duplikata")
+        print(f"✅ Supabase updated!")
+        print(f"   ➕ Inserted: {inserted} new comments")
+        print(f"   ⏭️  Skipped: {skipped} duplicates")
     else:
         print()
-        print("⚠️  Nije pronađeno komentara u ovom periodu")
+        print("⚠️  No comments found in this period")
 
 
 def export_to_csv(repo: str, days: int, output_file: str = None) -> None:
-    """Opciono: Također spremi u CSV za backup"""
-    
+    """Optional: also save comments to a CSV file for backup."""
+
     if output_file is None:
-        output_file = f"pr_review_debt.csv"
-    
-    print(f"💾 Izvozim u CSV: {output_file}")
-    
+        output_file = "pr_review_debt.csv"
+
+    print(f"💾 Exporting to CSV: {output_file}")
+
     cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat().replace("+00:00", "Z")
     prs = get_prs_from_last_n_days(repo, days)
-    
+
     all_rows = []
-    
+
     for pr in prs:
         pr_num = pr["number"]
         comments = get_review_comments(repo, pr_num, cutoff_date)
-        
+
         for comment in comments:
             row = {
                 "PR_Number": pr_num,
@@ -232,48 +227,48 @@ def export_to_csv(repo: str, days: int, output_file: str = None) -> None:
                 "Comment_Text": comment["body"].replace("\n", " ").replace('"', '""')
             }
             all_rows.append(row)
-    
+
     if all_rows:
         fieldnames = list(all_rows[0].keys())
         with open(output_file, "w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=fieldnames)
             writer.writeheader()
             writer.writerows(all_rows)
-        
-        print(f"✅ CSV exportan: {output_file}")
+
+        print(f"✅ CSV exported: {output_file}")
     else:
-        print("⚠️  Nije pronađeno komentara")
+        print("⚠️  No comments found")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Izvezi GitHub PR review komentare u Supabase"
+        description="Export GitHub PR review comments to Supabase"
     )
     parser.add_argument(
         "repo",
         nargs="?",
         default=None,
-        help="Repositorij (format: owner/repo). Auto-detektuje ako je u git repo."
+        help="Repository in owner/repo format. Auto-detected if running inside a git repo."
     )
     parser.add_argument(
         "--days", "-d",
         type=int,
         default=30,
-        help="Koliko dana unatrag da se pretraži (default: 30)"
+        help="How many days back to search (default: 30)"
     )
     parser.add_argument(
         "--to-csv",
         action="store_true",
-        help="Također spremi u CSV datoteku"
+        help="Also save to a CSV file"
     )
     parser.add_argument(
         "--output", "-o",
-        help="CSV output datoteka (default: pr_review_debt.csv)"
+        help="CSV output file (default: pr_review_debt.csv)"
     )
-    
+
     args = parser.parse_args()
 
-    # Repo rezolucija: argument → REPO env var → auto-detekcija
+    # Repo resolution: CLI argument → REPO env var → auto-detect from git
     repo = args.repo
     if repo:
         print(f"   Repo (argument): {repo}")
@@ -283,23 +278,23 @@ def main():
             repo = env_repo
             print(f"   Repo (env REPO): {repo}")
         else:
-            print("🔍 Auto-detektujem repositorij...")
+            print("🔍 Auto-detecting repository...")
             repo = get_current_repo()
             if not repo:
-                print("❌ Ne mogu auto-detektovati repo. Navedi ga kao argument ili postavi REPO env varijablu.")
+                print("❌ Could not detect repo. Pass it as an argument or set the REPO env variable.")
                 sys.exit(1)
-            print(f"   Repo (auto-detekcija): {repo}")
-    
+            print(f"   Repo (auto-detected): {repo}")
+
     try:
         export_to_supabase(repo, args.days)
-        
+
         if args.to_csv:
             export_to_csv(repo, args.days, args.output)
-    
+
     except KeyboardInterrupt:
-        print("\n⚠️  Prekidač od strane korisnika")
+        print("\n⚠️  Interrupted by user")
     except Exception as e:
-        print(f"\n❌ Greška: {e}")
+        print(f"\n❌ Error: {e}")
         exit(1)
 
 
