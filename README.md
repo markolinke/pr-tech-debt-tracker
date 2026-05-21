@@ -102,6 +102,69 @@ Otvori `dashboard.html` u browseru da vidim live podatke iz Supabasea.
 - **Srednje** — trebam raditi sada
 - **Visoko** — urgent
 
+## Adding or changing statuses
+
+Current statuses: `open`, `accepted`, `resolved`, `dismissed`.
+
+To add a new status (e.g. `in-progress`), update these four places:
+
+**1. Supabase — check for a CHECK constraint**
+
+In the Supabase dashboard: *Database → Tables → pr_comments → Constraints tab*.
+
+If a `status` constraint exists, update it in the SQL Editor:
+
+```sql
+ALTER TABLE pr_comments
+  DROP CONSTRAINT IF EXISTS pr_comments_status_check;
+
+ALTER TABLE pr_comments
+  ADD CONSTRAINT pr_comments_status_check
+  CHECK (status IN ('open', 'accepted', 'resolved', 'dismissed', 'in-progress'));
+```
+
+If no constraint exists, skip this step.
+
+**2. `dashboard/dashboard.html` — filter dropdown**
+
+```html
+<select id="filterStatus">
+  ...
+  <option value="in-progress">In progress</option>  <!-- add here -->
+</select>
+```
+
+**3. `dashboard/dashboard.html` — per-comment status select (inside `renderComments()`)**
+
+```js
+<option value="in-progress" ${comment.status === 'in-progress' ? 'selected' : ''}>In progress</option>
+```
+
+**4. `dashboard/dashboard.html` — stats card and `updateStats()`**
+
+Add a stat card in the HTML:
+```html
+<div class="stat-card">
+  <div class="stat-number" id="inProgressComments">0</div>
+  <div class="stat-label">In progress</div>
+</div>
+```
+
+Add a line in `updateStats()`:
+```js
+const inProgress = allComments.filter(c => c.status === 'in-progress').length
+document.getElementById('inProgressComments').textContent = inProgress
+```
+
+**5. `dashboard/dashboard.html` — badge color (optional)**
+
+```css
+.status-in-progress {
+  background: #fff3cd;
+  color: #856404;
+}
+```
+
 ## Greške & troubleshooting
 
 **"SUPABASE_URL i SUPABASE_ANON_KEY moraju biti postavljeni"**

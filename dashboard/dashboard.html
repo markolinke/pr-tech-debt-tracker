@@ -328,6 +328,11 @@
             background: #f8d7da;
             color: #721c24;
         }
+
+        .status-accepted {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
         
         .priority-low {
             color: #28a745;
@@ -450,6 +455,7 @@
                     <select id="filterStatus">
                         <option value="">All statuses</option>
                         <option value="open">Open</option>
+                        <option value="accepted">Accepted</option>
                         <option value="resolved">Resolved</option>
                         <option value="dismissed">Dismissed</option>
                     </select>
@@ -500,6 +506,10 @@
             <div class="stat-card">
                 <div class="stat-number" id="resolvedComments">0</div>
                 <div class="stat-label">Resolved</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="acceptedComments">0</div>
+                <div class="stat-label">Accepted</div>
             </div>
             <div class="stat-card">
                 <div class="stat-number" id="dismissedComments">0</div>
@@ -565,11 +575,13 @@
         function updateStats() {
             const total = allComments.length
             const open = allComments.filter(c => c.status === 'open').length
+            const accepted = allComments.filter(c => c.status === 'accepted').length
             const resolved = allComments.filter(c => c.status === 'resolved').length
             const dismissed = allComments.filter(c => c.status === 'dismissed').length
 
             document.getElementById('totalComments').textContent = total
             document.getElementById('openComments').textContent = open
+            document.getElementById('acceptedComments').textContent = accepted
             document.getElementById('resolvedComments').textContent = resolved
             document.getElementById('dismissedComments').textContent = dismissed
         }
@@ -746,6 +758,7 @@
                             <div class="comment-actions">
                                 <select class="status-select" onchange="window.updateCommentStatus(${comment.id}, this.value)">
                                     <option value="open" ${comment.status === 'open' ? 'selected' : ''}>Open</option>
+                                    <option value="accepted" ${comment.status === 'accepted' ? 'selected' : ''}>Accepted</option>
                                     <option value="resolved" ${comment.status === 'resolved' ? 'selected' : ''}>Resolved</option>
                                     <option value="dismissed" ${comment.status === 'dismissed' ? 'selected' : ''}>Dismissed</option>
                                 </select>
