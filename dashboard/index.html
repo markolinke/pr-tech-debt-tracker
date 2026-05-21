@@ -346,6 +346,11 @@
             background: #d1ecf1;
             color: #0c5460;
         }
+
+        .status-ticket-created {
+            background: #e2d9f3;
+            color: #4a235a;
+        }
         
         .priority-low {
             color: #28a745;
@@ -573,6 +578,7 @@
                         <option value="">All statuses</option>
                         <option value="open" selected>Open</option>
                         <option value="accepted">Accepted</option>
+                        <option value="ticket-created">Ticket Created</option>
                         <option value="resolved">Resolved</option>
                         <option value="dismissed">Dismissed</option>
                     </select>
@@ -620,13 +626,17 @@
                 <div class="stat-number" id="openComments">0</div>
                 <div class="stat-label">Open</div>
             </div>
-            <div class="stat-card" data-filter="resolved">
-                <div class="stat-number" id="resolvedComments">0</div>
-                <div class="stat-label">Resolved</div>
-            </div>
             <div class="stat-card" data-filter="accepted">
                 <div class="stat-number" id="acceptedComments">0</div>
                 <div class="stat-label">Accepted</div>
+            </div>
+            <div class="stat-card" data-filter="ticket-created">
+                <div class="stat-number" id="ticketCreatedComments">0</div>
+                <div class="stat-label">Ticket Created</div>
+            </div>
+            <div class="stat-card" data-filter="resolved">
+                <div class="stat-number" id="resolvedComments">0</div>
+                <div class="stat-label">Resolved</div>
             </div>
             <div class="stat-card" data-filter="dismissed">
                 <div class="stat-number" id="dismissedComments">0</div>
@@ -693,12 +703,14 @@
             const total = allComments.length
             const open = allComments.filter(c => c.status === 'open').length
             const accepted = allComments.filter(c => c.status === 'accepted').length
+            const ticketCreated = allComments.filter(c => c.status === 'ticket-created').length
             const resolved = allComments.filter(c => c.status === 'resolved').length
             const dismissed = allComments.filter(c => c.status === 'dismissed').length
 
             document.getElementById('totalComments').textContent = total
             document.getElementById('openComments').textContent = open
             document.getElementById('acceptedComments').textContent = accepted
+            document.getElementById('ticketCreatedComments').textContent = ticketCreated
             document.getElementById('resolvedComments').textContent = resolved
             document.getElementById('dismissedComments').textContent = dismissed
         }
@@ -921,6 +933,7 @@
                                 <select class="status-select" onchange="window.updateCommentStatus(${comment.id}, this.value)">
                                     <option value="open" ${comment.status === 'open' ? 'selected' : ''}>Open</option>
                                     <option value="accepted" ${comment.status === 'accepted' ? 'selected' : ''}>Accepted</option>
+                                    <option value="ticket-created" ${comment.status === 'ticket-created' ? 'selected' : ''}>Ticket Created</option>
                                     <option value="resolved" ${comment.status === 'resolved' ? 'selected' : ''}>Resolved</option>
                                     <option value="dismissed" ${comment.status === 'dismissed' ? 'selected' : ''}>Dismissed</option>
                                 </select>
