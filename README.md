@@ -83,15 +83,14 @@ To run automatically every 24 hours:
 
 ## Dashboard
 
-To run locally, serve the `dashboard/` folder with a local HTTP server:
+To run locally, serve the `docs/` folder with a local HTTP server:
 
 ```bash
-cd dashboard
-python -m http.server 8081
+cd docs && python3 -m http.server 8081
 # → http://localhost:8081
 ```
 
-On `localhost` the login screen still appears — use it to test the full auth flow, or sign in normally.
+On `localhost` auth is skipped automatically — the dashboard loads directly without a login prompt.
 
 **What the dashboard provides:**
 - ✅ Real-time display of all comments

@@ -208,6 +208,12 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .pr-header:hover {
+            background: #e8eaed;
         }
         
         .pr-title {
@@ -539,6 +545,70 @@
             background: #f6f8fa;
             color: #24292e;
         }
+
+        /* Floating per-PR controls */
+        .pr-controls {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+            pointer-events: none;
+            flex-shrink: 0;
+        }
+
+        .pr-header:hover .pr-controls {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .pr-ctrl-btn {
+            padding: 3px 10px;
+            border: 1px solid #d1d5da;
+            border-radius: 20px;
+            background: white;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            color: #586069;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            transition: all 0.1s;
+            line-height: 1.6;
+        }
+
+        .pr-ctrl-btn:hover {
+            background: #0366d6;
+            color: white;
+            border-color: #0366d6;
+        }
+
+        /* Global controls bar */
+        .global-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            font-size: 12px;
+            color: #586069;
+            align-items: center;
+        }
+
+        .global-ctrl-btn {
+            color: #0366d6;
+            cursor: pointer;
+            background: none;
+            border: none;
+            font-size: 12px;
+            padding: 0;
+            font-family: inherit;
+        }
+
+        .global-ctrl-btn:hover {
+            text-decoration: underline;
+        }
+
+        .global-ctrl-sep {
+            color: #d1d5da;
+        }
     </style>
 </head>
 <body>
@@ -662,6 +732,8 @@
 
         const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
         let allComments = []
+        const collapsedPrs = new Set()  // PR keys (string) that are collapsed
+        const hiddenCodePrs = new Set() // PR keys (string) where diff is hidden
         
         // DOM elements
         const commentsContainer = document.getElementById('commentsContainer')
@@ -896,11 +968,26 @@
                 return
             }
 
-            let html = ''
+            let html = `
+                <div class="global-controls">
+                    <span>PRs:</span>
+                    <button class="global-ctrl-btn" id="collapseAll">Collapse all</button>
+                    <span class="global-ctrl-sep">|</span>
+                    <button class="global-ctrl-btn" id="expandAll">Expand all</button>
+                    <span style="color:#d1d5da;margin:0 4px">•</span>
+                    <span>Code:</span>
+                    <button class="global-ctrl-btn" id="hideAllCode">Hide all</button>
+                    <span class="global-ctrl-sep">|</span>
+                    <button class="global-ctrl-btn" id="showAllCode">Show all</button>
+                </div>
+            `
             for (const prNum of Object.keys(byPr).sort((a, b) => b - a)) {
                 const pr = byPr[prNum]
+                const prKey = String(prNum)
+                const isCollapsed = collapsedPrs.has(prKey)
+                const isCodeHidden = hiddenCodePrs.has(prKey)
                 html += `
-                    <div class="pr-block">
+                    <div class="pr-block" data-pr="${prKey}">
                         <div class="pr-header">
                             <div>
                                 <div class="pr-title">
@@ -910,8 +997,11 @@
                                     by <strong>${escapeHtml(pr.author)}</strong> • ${pr.created.substring(0, 10)} • ${pr.comments.length} comment${pr.comments.length !== 1 ? 's' : ''}${pr.repo ? ` • <code>${escapeHtml(pr.repo)}</code>` : ''}
                                 </div>
                             </div>
+                            <div class="pr-controls">
+                                <button class="pr-ctrl-btn code-btn" data-pr="${prKey}">${isCodeHidden ? '▷ Show code' : '✕ Hide code'}</button>
+                            </div>
                         </div>
-                        <div class="comments-list">
+                        <div class="comments-list"${isCollapsed ? ' style="display:none"' : ''}>
                 `
 
                 for (const comment of pr.comments) {
@@ -928,7 +1018,7 @@
                             <div class="comment-location">
                                 ${escapeHtml(comment.comment_path)}:${comment.comment_line}
                             </div>
-                            ${diffHtml}
+                            <div class="diff-wrapper"${isCodeHidden ? ' style="display:none"' : ''}>${diffHtml}</div>
                             <div class="comment-body">${escapeHtml(comment.comment_text)}</div>
                             <div class="comment-actions">
                                 <select class="status-select" onchange="window.updateCommentStatus(${comment.id}, this.value)">
@@ -956,6 +1046,80 @@
             }
 
             commentsContainer.innerHTML = html
+            attachPrControlListeners()
+        }
+
+        function attachPrControlListeners() {
+            // Whole PR header: collapse toggle
+            commentsContainer.querySelectorAll('.pr-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const prBlock = header.closest('.pr-block')
+                    const prKey = prBlock.dataset.pr
+                    const commentsList = prBlock.querySelector('.comments-list')
+                    if (collapsedPrs.has(prKey)) {
+                        collapsedPrs.delete(prKey)
+                        commentsList.style.display = ''
+                    } else {
+                        collapsedPrs.add(prKey)
+                        commentsList.style.display = 'none'
+                    }
+                })
+            })
+
+            // Per-PR: code toggle (stopPropagation — ne trigerira collapse headera)
+            commentsContainer.querySelectorAll('.code-btn').forEach(btn => {
+                btn.addEventListener('click', e => {
+                    e.stopPropagation()
+                    const prKey = btn.dataset.pr
+                    const prBlock = btn.closest('.pr-block')
+                    const diffs = prBlock.querySelectorAll('.diff-wrapper')
+                    if (hiddenCodePrs.has(prKey)) {
+                        hiddenCodePrs.delete(prKey)
+                        diffs.forEach(d => d.style.display = '')
+                        btn.textContent = '✕ Hide code'
+                    } else {
+                        hiddenCodePrs.add(prKey)
+                        diffs.forEach(d => d.style.display = 'none')
+                        btn.textContent = '▷ Show code'
+                    }
+                })
+            })
+
+            // Global: collapse all
+            document.getElementById('collapseAll')?.addEventListener('click', () => {
+                commentsContainer.querySelectorAll('.pr-block').forEach(block => {
+                    collapsedPrs.add(block.dataset.pr)
+                    block.querySelector('.comments-list').style.display = 'none'
+                })
+            })
+
+            // Global: expand all
+            document.getElementById('expandAll')?.addEventListener('click', () => {
+                commentsContainer.querySelectorAll('.pr-block').forEach(block => {
+                    collapsedPrs.delete(block.dataset.pr)
+                    block.querySelector('.comments-list').style.display = ''
+                })
+            })
+
+            // Global: hide all code
+            document.getElementById('hideAllCode')?.addEventListener('click', () => {
+                commentsContainer.querySelectorAll('.pr-block').forEach(block => {
+                    hiddenCodePrs.add(block.dataset.pr)
+                    block.querySelectorAll('.diff-wrapper').forEach(d => d.style.display = 'none')
+                    const btn = block.querySelector('.code-btn')
+                    if (btn) btn.textContent = '▷ Show code'
+                })
+            })
+
+            // Global: show all code
+            document.getElementById('showAllCode')?.addEventListener('click', () => {
+                commentsContainer.querySelectorAll('.pr-block').forEach(block => {
+                    hiddenCodePrs.delete(block.dataset.pr)
+                    block.querySelectorAll('.diff-wrapper').forEach(d => d.style.display = '')
+                    const btn = block.querySelector('.code-btn')
+                    if (btn) btn.textContent = '✕ Hide code'
+                })
+            })
         }
 
         // Global functions for inline editing
