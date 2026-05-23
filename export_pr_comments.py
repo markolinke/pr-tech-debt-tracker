@@ -15,7 +15,7 @@ import argparse
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from supabase_utils import get_supabase_client, bulk_insert_comments
+from supabase_utils import get_supabase_client, bulk_insert_comments, log_run
 
 
 def get_current_repo() -> str:
@@ -200,6 +200,9 @@ def export_to_supabase(repo: str, days: int, dry_run: bool = False) -> None:
         print(f"✅ Supabase updated!")
         print(f"   ➕ Inserted: {inserted} new comments")
         print(f"   ⏭️  Skipped: {skipped} duplicates")
+
+        log_run(client, repo, inserted, skipped)
+        print(f"   📝 Run logged to _log")
 
 
 def export_to_csv(repo: str, days: int, output_file: str = None, dry_run: bool = False) -> None:

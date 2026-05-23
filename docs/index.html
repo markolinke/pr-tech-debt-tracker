@@ -609,6 +609,15 @@
         .global-ctrl-sep {
             color: #d1d5da;
         }
+
+        #lastUpdated {
+            transition: color 0.3s;
+        }
+
+        #lastUpdated.stale {
+            color: #d73a49;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -628,7 +637,7 @@
             <h1>📋 PR Review Debt Tracker</h1>
             <div class="meta">
                 <strong>Repository:</strong> <span id="repoName">Loading...</span><br>
-                <strong>Last updated:</strong> <span id="lastUpdated">-</span><br>
+                <strong>Last sync:</strong> <span id="lastUpdated" title="">-</span><br>
                 <strong>Status:</strong> <span id="connectionStatus">Connecting to Supabase...</span>
             </div>
             <div class="user-bar">
@@ -746,6 +755,54 @@
         const clearFilters = document.getElementById('clearFilters')
         const successMessage = document.getElementById('successMessage')
         const errorMessage = document.getElementById('errorMessage')
+
+        // Load last sync time from _log table
+        async function loadLastSync() {
+            try {
+                const { data, error } = await supabase
+                    .from('_log')
+                    .select('ran_at, inserted, skipped, repo')
+                    .order('ran_at', { ascending: false })
+                    .limit(1)
+                    .single()
+
+                const el = document.getElementById('lastUpdated')
+
+                if (error || !data) {
+                    el.textContent = 'never'
+                    return
+                }
+
+                const ranAt = new Date(data.ran_at)
+                const nowMs = Date.now()
+                const diffMs = nowMs - ranAt.getTime()
+                const diffH = diffMs / (1000 * 60 * 60)
+
+                // Human-readable "X ago"
+                function timeAgo(ms) {
+                    const s = Math.floor(ms / 1000)
+                    if (s < 60) return `${s}s ago`
+                    const m = Math.floor(s / 60)
+                    if (m < 60) return `${m}m ago`
+                    const h = Math.floor(m / 60)
+                    if (h < 24) return `${h}h ago`
+                    const d = Math.floor(h / 24)
+                    return `${d}d ago`
+                }
+
+                el.textContent = timeAgo(diffMs)
+                el.title = `${ranAt.toLocaleString()} — +${data.inserted} inserted, ${data.skipped} skipped${data.repo ? ` (${data.repo})` : ''}`
+
+                if (diffH > 48) {
+                    el.classList.add('stale')
+                    el.textContent += ' ⚠️'
+                } else {
+                    el.classList.remove('stale')
+                }
+            } catch (err) {
+                console.warn('Could not load _log:', err)
+            }
+        }
 
         // Load all comments
         async function loadComments() {
@@ -1163,7 +1220,10 @@
             document.getElementById('mainContent').style.display = 'block'
             document.getElementById('userEmail').textContent = user.email
             loadComments()
+            loadLastSync()
+            // Refresh comments every 30s, sync indicator every 60s
             refreshInterval = setInterval(loadComments, 30000)
+            setInterval(loadLastSync, 60000)
         }
 
         function showLogin() {

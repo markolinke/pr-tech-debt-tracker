@@ -42,6 +42,18 @@ def get_comment_by_url(client: Client, comment_url: str) -> dict:
         return None
 
 
+def log_run(client: Client, repo: str, inserted: int, skipped: int) -> None:
+    """Log a completed sync run to the _log table."""
+    try:
+        client.table("_log").insert({
+            "repo": repo,
+            "inserted": inserted,
+            "skipped": skipped,
+        }).execute()
+    except Exception as e:
+        print(f"⚠️  Could not write to _log: {e}")
+
+
 def bulk_insert_comments(client: Client, comments: list) -> tuple[int, int]:
     """
     Insert multiple comments, skipping duplicates.
