@@ -312,9 +312,57 @@
             cursor: pointer;
             background: white;
         }
-        
+
         .status-select:hover {
             border-color: #0366d6;
+        }
+
+        .ticket-info-container {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e1e4e8;
+        }
+
+        .ticket-info-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #586069;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .ticket-info-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #e1e4e8;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .ticket-info-input:focus {
+            outline: none;
+            border-color: #0366d6;
+            box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+        }
+
+        .ticket-info-display {
+            margin-top: 8px;
+            padding: 6px 8px;
+            background: #f6f8fa;
+            border-radius: 3px;
+            font-size: 12px;
+            word-break: break-all;
+        }
+
+        .ticket-info-display a {
+            color: #0366d6;
+            text-decoration: none;
+        }
+
+        .ticket-info-display a:hover {
+            text-decoration: underline;
         }
         
         .priority-select {
@@ -1101,6 +1149,15 @@
             }
         }
 
+        function isValidUrl(string) {
+            try {
+                new URL(string)
+                return true
+            } catch (_) {
+                return false
+            }
+        }
+
         async function updateComment(id, updates) {
             try {
                 const { error } = await supabase
@@ -1241,6 +1298,19 @@
                                 </select>
                                 <a href="${escapeHtml(comment.comment_url)}" class="comment-link" target="_blank">View on GitHub →</a>
                             </div>
+                            ${comment.status === 'ticket-created' ? `
+                                <div class="ticket-info-container">
+                                    <div class="ticket-info-label">Ticket Info</div>
+                                    ${comment.ticket_info ? `
+                                        <div class="ticket-info-display">
+                                            ${isValidUrl(comment.ticket_info) ? `<a href="${escapeHtml(comment.ticket_info)}" target="_blank">${escapeHtml(comment.ticket_info)}</a>` : escapeHtml(comment.ticket_info)}
+                                        </div>
+                                        <input type="text" class="ticket-info-input" value="${escapeHtml(comment.ticket_info || '')}" onchange="window.updateCommentTicketInfo(${comment.id}, this.value)" placeholder="Enter ticket URL or info...">
+                                    ` : `
+                                        <input type="text" class="ticket-info-input" value="" onchange="window.updateCommentTicketInfo(${comment.id}, this.value)" placeholder="Enter ticket URL or info...">
+                                    `}
+                                </div>
+                            ` : ''}
                         </div>
                     `
                 }
@@ -1335,6 +1405,11 @@
 
         window.updateCommentPriority = function(id, priority) {
             updateComment(id, { priority })
+        }
+
+        window.updateCommentTicketInfo = async function(id, ticketInfo) {
+            await updateComment(id, { ticket_info: ticketInfo || null })
+            renderComments()
         }
 
         // Stat card click — set status filter

@@ -142,7 +142,8 @@ def format_for_supabase(pr: dict, comment: dict, repo: str) -> dict:
         "comment_diff_hunk": comment["diff_hunk"],
         "viewed": False,
         "status": "open",
-        "priority": "medium"
+        "priority": "medium",
+        "ticket_info": None
     }
 
 
