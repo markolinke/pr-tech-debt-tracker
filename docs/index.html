@@ -1091,6 +1091,16 @@
             return text.replace(/[&<>"']/g, m => map[m])
         }
 
+        function formatLocalTime(utcDateString) {
+            if (!utcDateString) return utcDateString
+            try {
+                const date = new Date(utcDateString)
+                return date.toLocaleString()
+            } catch (e) {
+                return utcDateString
+            }
+        }
+
         async function updateComment(id, updates) {
             try {
                 const { error } = await supabase
@@ -1209,7 +1219,7 @@
                         <div class="comment">
                             <div class="comment-header">
                                 <span class="comment-author">${escapeHtml(comment.comment_author)}</span>
-                                <span class="comment-date">${comment.comment_date}</span>
+                                <span class="comment-date">${formatLocalTime(comment.comment_date)}</span>
                             </div>
                             <div class="comment-location">
                                 ${escapeHtml(comment.comment_path)}:${comment.comment_line}
