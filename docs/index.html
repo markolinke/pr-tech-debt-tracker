@@ -317,6 +317,27 @@
             border-color: #0366d6;
         }
 
+        .save-btn {
+            padding: 6px 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        .save-btn:hover {
+            background: #218838;
+        }
+
+        .save-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
         .ticket-info-container {
             margin-top: 8px;
             padding-top: 8px;
@@ -1283,34 +1304,31 @@
                             </div>
                             <div class="diff-wrapper"${isCodeHidden ? ' style="display:none"' : ''}>${diffHtml}</div>
                             <div class="comment-body">${escapeHtml(comment.comment_text)}</div>
-                            <div class="comment-actions">
-                                <select class="status-select" onchange="window.updateCommentStatus(${comment.id}, this.value)">
+                            <div class="comment-actions" data-comment-id="${comment.id}" data-original-status="${comment.status}" data-original-priority="${comment.priority}" data-original-ticket-info="${comment.ticket_info || ''}">
+                                <select class="status-select status-${comment.id}" data-comment-id="${comment.id}" data-field="status">
                                     <option value="open" ${comment.status === 'open' ? 'selected' : ''}>Open</option>
                                     <option value="accepted" ${comment.status === 'accepted' ? 'selected' : ''}>Accepted</option>
                                     <option value="ticket-created" ${comment.status === 'ticket-created' ? 'selected' : ''}>Ticket Created</option>
                                     <option value="resolved" ${comment.status === 'resolved' ? 'selected' : ''}>Resolved</option>
                                     <option value="dismissed" ${comment.status === 'dismissed' ? 'selected' : ''}>Dismissed</option>
                                 </select>
-                                <select class="priority-select" onchange="window.updateCommentPriority(${comment.id}, this.value)">
+                                <select class="priority-select priority-${comment.id}" data-comment-id="${comment.id}" data-field="priority">
                                     <option value="low" ${comment.priority === 'low' ? 'selected' : ''}>Low</option>
                                     <option value="medium" ${comment.priority === 'medium' ? 'selected' : ''}>Medium</option>
                                     <option value="high" ${comment.priority === 'high' ? 'selected' : ''}>High</option>
                                 </select>
+                                <button class="save-btn save-btn-${comment.id}" data-comment-id="${comment.id}" style="display:none">Save</button>
                                 <a href="${escapeHtml(comment.comment_url)}" class="comment-link" target="_blank">View on GitHub →</a>
                             </div>
-                            ${comment.status === 'ticket-created' ? `
-                                <div class="ticket-info-container">
-                                    <div class="ticket-info-label">Ticket Info</div>
-                                    ${comment.ticket_info ? `
-                                        <div class="ticket-info-display">
-                                            ${isValidUrl(comment.ticket_info) ? `<a href="${escapeHtml(comment.ticket_info)}" target="_blank">${escapeHtml(comment.ticket_info)}</a>` : escapeHtml(comment.ticket_info)}
-                                        </div>
-                                        <input type="text" class="ticket-info-input" value="${escapeHtml(comment.ticket_info || '')}" onchange="window.updateCommentTicketInfo(${comment.id}, this.value)" placeholder="Enter ticket URL or info...">
-                                    ` : `
-                                        <input type="text" class="ticket-info-input" value="" onchange="window.updateCommentTicketInfo(${comment.id}, this.value)" placeholder="Enter ticket URL or info...">
-                                    `}
-                                </div>
-                            ` : ''}
+                            <div class="ticket-info-container" data-comment-id="${comment.id}" data-original-ticket-info="${escapeHtml(comment.ticket_info || '')}" style="display:${comment.status === 'ticket-created' || comment.ticket_info ? 'block' : 'none'}">
+                                <div class="ticket-info-label">Ticket Info</div>
+                                ${comment.ticket_info ? `
+                                    <div class="ticket-info-display">
+                                        ${isValidUrl(comment.ticket_info) ? `<a href="${escapeHtml(comment.ticket_info)}" target="_blank">${escapeHtml(comment.ticket_info)}</a>` : escapeHtml(comment.ticket_info)}
+                                    </div>
+                                ` : ''}
+                                <input type="text" class="ticket-info-input ticket-info-${comment.id}" data-comment-id="${comment.id}" data-field="ticket_info" value="${escapeHtml(comment.ticket_info || '')}" placeholder="Enter ticket URL or info...">
+                            </div>
                         </div>
                     `
                 }
@@ -1396,6 +1414,63 @@
                     if (btn) btn.textContent = '✕ Hide code'
                 })
             })
+
+            // Track changes and show/hide save buttons
+            commentsContainer.querySelectorAll('.comment').forEach(commentEl => {
+                const commentActions = commentEl.querySelector('.comment-actions')
+                const saveBtn = commentActions?.querySelector('.save-btn')
+                if (!saveBtn) return
+
+                const commentId = parseInt(saveBtn.dataset.commentId)
+
+                const checkChanges = () => {
+                    const status = commentEl.querySelector('[data-field="status"]')?.value
+                    const priority = commentEl.querySelector('[data-field="priority"]')?.value
+                    const ticketInfo = commentEl.querySelector('[data-field="ticket_info"]')?.value || ''
+
+                    const originalStatus = commentActions.dataset.originalStatus
+                    const originalPriority = commentActions.dataset.originalPriority
+                    const originalTicketInfo = commentActions.dataset.originalTicketInfo || ''
+
+                    const hasChanges = status !== originalStatus || priority !== originalPriority || ticketInfo !== originalTicketInfo
+
+                    saveBtn.style.display = hasChanges ? 'inline-block' : 'none'
+                }
+
+                // Add listeners to select/input fields
+                commentEl.querySelectorAll('[data-field]').forEach(field => {
+                    field.addEventListener('change', checkChanges)
+                    field.addEventListener('input', checkChanges)
+
+                    // Show/hide ticket-info-container when status changes
+                    if (field.dataset.field === 'status') {
+                        field.addEventListener('change', () => {
+                            const ticketContainer = commentEl.querySelector('.ticket-info-container')
+                            if (ticketContainer) {
+                                ticketContainer.style.display = field.value === 'ticket-created' ? 'block' : 'none'
+                            }
+                        })
+                    }
+                })
+
+                // Save button click handler
+                saveBtn.addEventListener('click', async () => {
+                    const updates = {}
+
+                    const status = commentEl.querySelector('[data-field="status"]').value
+                    const priority = commentEl.querySelector('[data-field="priority"]').value
+                    const ticketInfo = commentEl.querySelector('[data-field="ticket_info"]')?.value || null
+
+                    if (status !== commentActions.dataset.originalStatus) updates.status = status
+                    if (priority !== commentActions.dataset.originalPriority) updates.priority = priority
+                    if ((ticketInfo || '') !== (commentActions.dataset.originalTicketInfo || '')) updates.ticket_info = ticketInfo
+
+                    if (Object.keys(updates).length > 0) {
+                        await updateComment(commentId, updates)
+                        renderComments()
+                    }
+                })
+            })
         }
 
         // Global functions for inline editing
@@ -1437,24 +1512,18 @@
         })
 
         // Auth
-        let refreshInterval = null
-
         function showDashboard(user) {
             document.getElementById('loginScreen').style.display = 'none'
             document.getElementById('mainContent').style.display = 'block'
             document.getElementById('userEmail').textContent = user.email
             loadComments()
             loadLastSync()
-            // Refresh comments every 30s, sync indicator every 60s
-            refreshInterval = setInterval(loadComments, 30000)
-            setInterval(loadLastSync, 60000)
         }
 
         function showLogin() {
             window.history.replaceState(null, '', window.location.pathname)
             document.getElementById('loginScreen').style.display = 'flex'
             document.getElementById('mainContent').style.display = 'none'
-            if (refreshInterval) clearInterval(refreshInterval)
         }
 
         document.getElementById('loginBtn').addEventListener('click', () => {
@@ -1468,14 +1537,6 @@
             supabase.auth.signOut()
         })
 
-        supabase.auth.onAuthStateChange((_event, session) => {
-            if (session) {
-                showDashboard(session.user)
-            } else {
-                showLogin()
-            }
-        })
-
         // Skip auth when running locally (file:// or localhost)
         const isLocal = window.location.protocol === 'file:' ||
                         ['localhost', '127.0.0.1'].includes(window.location.hostname)
@@ -1483,6 +1544,14 @@
         if (isLocal) {
             showDashboard({ email: 'local dev' })
         } else {
+            supabase.auth.onAuthStateChange((_event, session) => {
+                if (session) {
+                    showDashboard(session.user)
+                } else {
+                    showLogin()
+                }
+            })
+
             const { data: { session } } = await supabase.auth.getSession()
             if (session) {
                 showDashboard(session.user)
