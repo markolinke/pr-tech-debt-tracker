@@ -166,7 +166,7 @@ Authentication → URL Configuration → Redirect URLs → add your hosted URL (
 
 ## Adding or changing statuses
 
-Current statuses: `open`, `accepted`, `resolved`, `dismissed`.
+Current statuses: `open`, `accepted`, `resolved`, `dismissed`, `archived`.
 
 To add a new status (e.g. `in-progress`), update these four places:
 
@@ -182,7 +182,7 @@ ALTER TABLE pr_comments
 
 ALTER TABLE pr_comments
   ADD CONSTRAINT pr_comments_status_check
-  CHECK (status IN ('open', 'accepted', 'resolved', 'dismissed', 'in-progress'));
+  CHECK (status IN ('open', 'accepted', 'resolved', 'dismissed', 'archived', 'ticket-created'));
 ```
 
 If no constraint exists, skip this step.

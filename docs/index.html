@@ -305,7 +305,12 @@
         }
         
         .status-select {
-            display: none;
+            padding: 4px 8px;
+            border: 1px solid #e1e4e8;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            background: white;
         }
 
         .status-select:hover {
@@ -313,7 +318,15 @@
         }
 
         .save-btn {
-            display: none;
+            padding: 6px 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.2s;
         }
 
         .save-btn:hover {
@@ -326,13 +339,42 @@
         }
 
         .ticket-info-container {
-            display: none;
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e1e4e8;
         }
 
-        .ticket-info-label,
-        .ticket-info-input,
+        .ticket-info-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: #586069;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+
+        .ticket-info-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #e1e4e8;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .ticket-info-input:focus {
+            outline: none;
+            border-color: #0366d6;
+            box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+        }
+
         .ticket-info-display {
-            display: none;
+            margin-top: 8px;
+            padding: 6px 8px;
+            background: #f6f8fa;
+            border-radius: 3px;
+            font-size: 12px;
+            word-break: break-all;
         }
 
         .ticket-info-display a {
@@ -345,7 +387,12 @@
         }
         
         .priority-select {
-            display: none;
+            padding: 4px 8px;
+            border: 1px solid #e1e4e8;
+            border-radius: 3px;
+            font-size: 12px;
+            cursor: pointer;
+            background: white;
         }
         
         .status-badge {
@@ -1299,9 +1346,37 @@
                             </div>` : ''}
                             <div class="diff-wrapper"${isCodeHidden ? ' style="display:none"' : ''}>${diffHtml}</div>
                             <div class="comment-body">${escapeHtml(comment.comment_text)}</div>
+                            ${comment.status !== 'archived' ? `
                             <div class="comment-actions" data-comment-id="${comment.id}" data-original-status="${comment.status}" data-original-priority="${comment.priority}" data-original-ticket-info="${comment.ticket_info || ''}">
+                                <select class="status-select status-${comment.id}" data-comment-id="${comment.id}" data-field="status">
+                                    <option value="open" ${comment.status === 'open' ? 'selected' : ''}>Open</option>
+                                    <option value="accepted" ${comment.status === 'accepted' ? 'selected' : ''}>Accepted</option>
+                                    <option value="ticket-created" ${comment.status === 'ticket-created' ? 'selected' : ''}>Ticket Created</option>
+                                    <option value="resolved" ${comment.status === 'resolved' ? 'selected' : ''}>Resolved</option>
+                                    <option value="dismissed" ${comment.status === 'dismissed' ? 'selected' : ''}>Dismissed</option>
+                                </select>
+                                <select class="priority-select priority-${comment.id}" data-comment-id="${comment.id}" data-field="priority">
+                                    <option value="low" ${comment.priority === 'low' ? 'selected' : ''}>Low</option>
+                                    <option value="medium" ${comment.priority === 'medium' ? 'selected' : ''}>Medium</option>
+                                    <option value="high" ${comment.priority === 'high' ? 'selected' : ''}>High</option>
+                                </select>
+                                <button class="save-btn save-btn-${comment.id}" data-comment-id="${comment.id}" style="display:none">Save</button>
                                 <a href="${escapeHtml(comment.comment_url)}" class="comment-link" target="_blank">View on GitHub →</a>
                             </div>
+                            <div class="ticket-info-container" data-comment-id="${comment.id}" data-original-ticket-info="${escapeHtml(comment.ticket_info || '')}" style="display:${comment.status === 'ticket-created' || comment.ticket_info ? 'block' : 'none'}">
+                                <div class="ticket-info-label">Ticket Info</div>
+                                ${comment.ticket_info ? `
+                                    <div class="ticket-info-display">
+                                        ${isValidUrl(comment.ticket_info) ? `<a href="${escapeHtml(comment.ticket_info)}" target="_blank">${escapeHtml(comment.ticket_info)}</a>` : escapeHtml(comment.ticket_info)}
+                                    </div>
+                                ` : ''}
+                                <input type="text" class="ticket-info-input ticket-info-${comment.id}" data-comment-id="${comment.id}" data-field="ticket_info" value="${escapeHtml(comment.ticket_info || '')}" placeholder="Enter ticket URL or info...">
+                            </div>
+                            ` : `
+                            <div class="comment-actions" data-comment-id="${comment.id}">
+                                <a href="${escapeHtml(comment.comment_url)}" class="comment-link" target="_blank">View on GitHub →</a>
+                            </div>
+                            `}
                         </div>
                     `
                 }
