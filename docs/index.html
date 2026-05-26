@@ -151,7 +151,7 @@
         
         .stats {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
             gap: 16px;
             margin-bottom: 20px;
         }
@@ -305,12 +305,7 @@
         }
         
         .status-select {
-            padding: 4px 8px;
-            border: 1px solid #e1e4e8;
-            border-radius: 3px;
-            font-size: 12px;
-            cursor: pointer;
-            background: white;
+            display: none;
         }
 
         .status-select:hover {
@@ -318,15 +313,7 @@
         }
 
         .save-btn {
-            padding: 6px 12px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            font-size: 12px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: background 0.2s;
+            display: none;
         }
 
         .save-btn:hover {
@@ -339,42 +326,13 @@
         }
 
         .ticket-info-container {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid #e1e4e8;
+            display: none;
         }
 
-        .ticket-info-label {
-            font-size: 11px;
-            font-weight: 600;
-            color: #586069;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-
-        .ticket-info-input {
-            width: 100%;
-            padding: 6px 8px;
-            border: 1px solid #e1e4e8;
-            border-radius: 3px;
-            font-size: 12px;
-            font-family: inherit;
-            box-sizing: border-box;
-        }
-
-        .ticket-info-input:focus {
-            outline: none;
-            border-color: #0366d6;
-            box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
-        }
-
+        .ticket-info-label,
+        .ticket-info-input,
         .ticket-info-display {
-            margin-top: 8px;
-            padding: 6px 8px;
-            background: #f6f8fa;
-            border-radius: 3px;
-            font-size: 12px;
-            word-break: break-all;
+            display: none;
         }
 
         .ticket-info-display a {
@@ -387,12 +345,7 @@
         }
         
         .priority-select {
-            padding: 4px 8px;
-            border: 1px solid #e1e4e8;
-            border-radius: 3px;
-            font-size: 12px;
-            cursor: pointer;
-            background: white;
+            display: none;
         }
         
         .status-badge {
@@ -427,7 +380,12 @@
             background: #e2d9f3;
             color: #4a235a;
         }
-        
+
+        .status-archived {
+            background: #e8e8e8;
+            color: #586069;
+        }
+
         .priority-low {
             color: #28a745;
         }
@@ -449,7 +407,32 @@
         .comment-link:hover {
             text-decoration: underline;
         }
-        
+
+        .archive-btn, .open-btn {
+            padding: 4px 8px;
+            border: 1px solid #e1e4e8;
+            border-radius: 3px;
+            background: white;
+            color: #24292e;
+            font-size: 12px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+
+        .archive-btn:hover {
+            background: #f6f8fa;
+            border-color: #0366d6;
+            color: #0366d6;
+        }
+
+        .open-btn:hover {
+            background: #f6f8fa;
+            border-color: #0366d6;
+            color: #0366d6;
+        }
+
         .diff-context {
             background: #f6f8fa;
             border: 1px solid #e1e4e8;
@@ -824,6 +807,7 @@
                         <option value="ticket-created">Ticket Created</option>
                         <option value="resolved">Resolved</option>
                         <option value="dismissed">Dismissed</option>
+                        <option value="archived">Archived</option>
                     </select>
                 </div>
                 <div class="filter-group">
@@ -854,6 +838,7 @@
             </div>
             <div class="filter-actions">
                 <button class="primary" id="applyFilters">Apply filters</button>
+                <button id="archiveAllBtn" style="display: none;">Archive All Dismissed</button>
             </div>
         </div>
 
@@ -884,6 +869,10 @@
             <div class="stat-card" data-filter="dismissed">
                 <div class="stat-number" id="dismissedComments">0</div>
                 <div class="stat-label">Dismissed</div>
+            </div>
+            <div class="stat-card" data-filter="archived">
+                <div class="stat-number" id="archivedComments">0</div>
+                <div class="stat-label">Archived</div>
             </div>
         </div>
 
@@ -1044,6 +1033,7 @@
             const ticketCreated = allComments.filter(c => c.status === 'ticket-created').length
             const resolved = allComments.filter(c => c.status === 'resolved').length
             const dismissed = allComments.filter(c => c.status === 'dismissed').length
+            const archived = allComments.filter(c => c.status === 'archived').length
 
             document.getElementById('totalComments').textContent = total
             document.getElementById('openComments').textContent = open
@@ -1051,6 +1041,7 @@
             document.getElementById('ticketCreatedComments').textContent = ticketCreated
             document.getElementById('resolvedComments').textContent = resolved
             document.getElementById('dismissedComments').textContent = dismissed
+            document.getElementById('archivedComments').textContent = archived
         }
 
         function populateFilterDropdowns() {
@@ -1298,36 +1289,18 @@
                             <div class="comment-header">
                                 <span class="comment-author">${escapeHtml(comment.comment_author)}</span>
                                 <span class="comment-date">${formatLocalTime(comment.comment_date)}</span>
+                                ${comment.status === 'archived' ? `<button class="open-btn" data-comment-id="${comment.id}">↻ Open</button>` : `<button class="archive-btn" data-comment-id="${comment.id}">📦 Archive</button>`}
                             </div>
                             <div class="comment-location">
                                 ${escapeHtml(comment.comment_path)}:${comment.comment_line}
                             </div>
+                            ${comment.ticket_info ? `<div style="margin: 8px 0; padding: 8px; background: #f6f8fa; border-radius: 3px; font-size: 12px;">
+                                <strong>Ticket:</strong> ${isValidUrl(comment.ticket_info) ? `<a href="${escapeHtml(comment.ticket_info)}" target="_blank">${escapeHtml(comment.ticket_info)}</a>` : escapeHtml(comment.ticket_info)}
+                            </div>` : ''}
                             <div class="diff-wrapper"${isCodeHidden ? ' style="display:none"' : ''}>${diffHtml}</div>
                             <div class="comment-body">${escapeHtml(comment.comment_text)}</div>
                             <div class="comment-actions" data-comment-id="${comment.id}" data-original-status="${comment.status}" data-original-priority="${comment.priority}" data-original-ticket-info="${comment.ticket_info || ''}">
-                                <select class="status-select status-${comment.id}" data-comment-id="${comment.id}" data-field="status">
-                                    <option value="open" ${comment.status === 'open' ? 'selected' : ''}>Open</option>
-                                    <option value="accepted" ${comment.status === 'accepted' ? 'selected' : ''}>Accepted</option>
-                                    <option value="ticket-created" ${comment.status === 'ticket-created' ? 'selected' : ''}>Ticket Created</option>
-                                    <option value="resolved" ${comment.status === 'resolved' ? 'selected' : ''}>Resolved</option>
-                                    <option value="dismissed" ${comment.status === 'dismissed' ? 'selected' : ''}>Dismissed</option>
-                                </select>
-                                <select class="priority-select priority-${comment.id}" data-comment-id="${comment.id}" data-field="priority">
-                                    <option value="low" ${comment.priority === 'low' ? 'selected' : ''}>Low</option>
-                                    <option value="medium" ${comment.priority === 'medium' ? 'selected' : ''}>Medium</option>
-                                    <option value="high" ${comment.priority === 'high' ? 'selected' : ''}>High</option>
-                                </select>
-                                <button class="save-btn save-btn-${comment.id}" data-comment-id="${comment.id}" style="display:none">Save</button>
                                 <a href="${escapeHtml(comment.comment_url)}" class="comment-link" target="_blank">View on GitHub →</a>
-                            </div>
-                            <div class="ticket-info-container" data-comment-id="${comment.id}" data-original-ticket-info="${escapeHtml(comment.ticket_info || '')}" style="display:${comment.status === 'ticket-created' || comment.ticket_info ? 'block' : 'none'}">
-                                <div class="ticket-info-label">Ticket Info</div>
-                                ${comment.ticket_info ? `
-                                    <div class="ticket-info-display">
-                                        ${isValidUrl(comment.ticket_info) ? `<a href="${escapeHtml(comment.ticket_info)}" target="_blank">${escapeHtml(comment.ticket_info)}</a>` : escapeHtml(comment.ticket_info)}
-                                    </div>
-                                ` : ''}
-                                <input type="text" class="ticket-info-input ticket-info-${comment.id}" data-comment-id="${comment.id}" data-field="ticket_info" value="${escapeHtml(comment.ticket_info || '')}" placeholder="Enter ticket URL or info...">
                             </div>
                         </div>
                     `
@@ -1341,6 +1314,8 @@
 
             commentsContainer.innerHTML = html
             attachPrControlListeners()
+            attachArchiveListeners()
+            updateArchiveAllButton()
         }
 
         function attachPrControlListeners() {
@@ -1495,9 +1470,39 @@
             })
         })
 
+        // Archive/Open button handlers — attached dynamically in renderComments
+        function attachArchiveListeners() {
+            document.querySelectorAll('.archive-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation()
+                    const commentId = parseInt(btn.dataset.commentId)
+                    await updateComment(commentId, { status: 'archived' })
+                    renderComments()
+                })
+            })
+
+            document.querySelectorAll('.open-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation()
+                    const commentId = parseInt(btn.dataset.commentId)
+                    await updateComment(commentId, { status: 'open' })
+                    renderComments()
+                })
+            })
+        }
+
+        // Update "Archive All" button visibility
+        function updateArchiveAllButton() {
+            const archiveAllBtn = document.getElementById('archiveAllBtn')
+            const selectedStatus = document.getElementById('filterStatus').value
+            archiveAllBtn.style.display = selectedStatus === 'dismissed' ? 'inline-block' : 'none'
+        }
+
         // Event listeners
         applyFilters.addEventListener('click', renderComments)
-        
+
+        filterStatus.addEventListener('change', updateArchiveAllButton)
+
         clearFilters.addEventListener('click', () => {
             filterStatus.value = 'open'
             filterPriority.value = ''
@@ -1509,6 +1514,29 @@
 
         filterCommentText.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') renderComments()
+        })
+
+        // Archive All button handler
+        document.getElementById('archiveAllBtn').addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to archive all dismissed comments?')) return
+
+            try {
+                const dismissedComments = allComments.filter(c => c.status === 'dismissed')
+                if (dismissedComments.length === 0) {
+                    showMessage('No dismissed comments to archive', 'error')
+                    return
+                }
+
+                for (const comment of dismissedComments) {
+                    await updateComment(comment.id, { status: 'archived' })
+                }
+
+                showMessage(`✅ Archived ${dismissedComments.length} dismissed comment${dismissedComments.length !== 1 ? 's' : ''}`, 'success')
+                renderComments()
+            } catch (err) {
+                console.error('Error archiving:', err)
+                showMessage('❌ Error archiving: ' + err.message, 'error')
+            }
         })
 
         // Auth
